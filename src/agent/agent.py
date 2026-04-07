@@ -73,6 +73,8 @@ if __name__ == "__main__":
     print("Gõ 'quit' để thoát")
     print("=" * 60)
 
+    messages = []  # Accumulate conversation history
+
     while True:
         user_input = input("\nBạn: ").strip()
 
@@ -81,7 +83,17 @@ if __name__ == "__main__":
 
         print("\nTravelBuddy đang suy nghĩ...")
 
-        result = graph.invoke({"messages": [("human", user_input)]})
+        # Add user input to history
+        messages.append(("human", user_input))
+
+        result = graph.invoke({"messages": messages})
         final = result["messages"][-1]
 
-        print(f"\nTravelBuddy: {final.content}")
+        # Add assistant response to history
+        messages.append(("assistant", final.content))
+
+        # Ensure we only print the final response content once
+        if hasattr(final, 'content') and final.content:
+            print(f"\nTravelBuddy: {final.content}")
+        else:
+            print("\nTravelBuddy: (Không có phản hồi)")
