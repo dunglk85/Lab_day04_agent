@@ -3,7 +3,7 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from dotenv import load_dotenv
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
@@ -34,12 +34,54 @@ llm_with_tools = llm.bind_tools(tools_list)
 # 4. Agent Node
 def agent_node(state: AgentState):
     messages = state["messages"]
-    step = state.get("step", "searching")
     
     if not isinstance(messages[0], SystemMessage):
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
 
-    response = llm_with_tools.invoke(messages)
+    # Check if we have tool results, if yes, generate final response
+    has_tool_results = any(isinstance(msg, ToolMessage) for msg in messages)
+    
+    if has_tool_results:
+        # Generate final response based on tool results
+        response = llm.invoke(messages)  # Use llm without tools to generate final answer
+        print("Trả lời trực tiếp")
+        return {"messages": [response]}
+
+    # Check if user wants tư vấn and has enough info for parallel search
+    last_human = None
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            last_human = msg.content
+            break
+    
+    if last_human and "budget" in last_human.lower():
+        # Parse origin and destination from message
+        import re
+        # Match "ở/từ [origin]" and "đi/đến [destination]"
+        origin_match = re.search(r'(?:ở|từ)\s+([^,]+)', last_human, re.IGNORECASE)
+        dest_match = re.search(r'(?:đi|đến)\s+([^,\d]+)', last_human, re.IGNORECASE)
+        origin = origin_match.group(1).strip() if origin_match else "Hà Nội"
+        destination = dest_match.group(1).strip() if dest_match else "Phú Quốc"
+        
+        # Force parallel tool calls
+        from langchain_core.messages import AIMessage
+        tool_calls = [
+            {
+                "name": "search_flights",
+                "args": {"origin": origin, "destination": destination},
+                "id": "call_flights",
+                "type": "tool_call"
+            },
+            {
+                "name": "search_hotels",
+                "args": {"city": destination},
+                "id": "call_hotels",
+                "type": "tool_call"
+            }
+        ]
+        response = AIMessage(content="", tool_calls=tool_calls)
+    else:
+        response = llm_with_tools.invoke(messages)
 
     # == LOGGING ==
     if response.tool_calls:
@@ -47,17 +89,6 @@ def agent_node(state: AgentState):
             print(f"Gọi tool: {tc['name']} ({tc['args']})")
     else:
         print("Trả lời trực tiếp")
-
-    # Nếu đã xong rồi thì không gọi tool nữa
-    if step == "done":
-        return {
-            "messages": [response],
-            "step": "done"
-        }
-
-    return {
-        "messages": [response]
-    }
 
     return {"messages": [response]}
 
