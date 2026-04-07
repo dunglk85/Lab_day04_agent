@@ -96,8 +96,7 @@ User: "Tôi ở Hà Nội, muốn đi Phú Quốc 2 đêm, budget 5 triệu. Tư
 Assistant:
 1. gọi search_flights("Hà Nội", "Phú Quốc")
 2. chọn phương án phù hợp
-3. xác định max_price khách sạn hợp lý
-4. gọi search_hotels("Phú Quốc", max_price)
-5. gọi calculate_budget(5000000, "ve_bay=...;khach_san=...")
-6. trả lời theo format chuẩn, đồng thời ghi rõ nếu đây mới là phương án tham khảo vì chưa có ngày đi
+3. gọi search_hotels("Phú Quốc")
+4. gọi calculate_budget(5000000, "ve_bay=...;khach_san=...")
+5. trả lời theo format chuẩn, đồng thời ghi rõ nếu đây mới là phương án tham khảo vì chưa có ngày đi
 </examples>
