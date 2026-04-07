@@ -21,6 +21,7 @@ SYSTEM_PROMPT = (BASE_DIR / "system_prompt.txt").read_text(encoding="utf-8")
 # 2. Khai báo State
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
+    step: str  # "searching", "done"
 
 
 # 3. Khởi tạo LLM và Tools
@@ -33,7 +34,8 @@ llm_with_tools = llm.bind_tools(tools_list)
 # 4. Agent Node
 def agent_node(state: AgentState):
     messages = state["messages"]
-
+    step = state.get("step", "searching")
+    
     if not isinstance(messages[0], SystemMessage):
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
 
@@ -45,6 +47,17 @@ def agent_node(state: AgentState):
             print(f"Gọi tool: {tc['name']} ({tc['args']})")
     else:
         print("Trả lời trực tiếp")
+
+    # Nếu đã xong rồi thì không gọi tool nữa
+    if step == "done":
+        return {
+            "messages": [response],
+            "step": "done"
+        }
+
+    return {
+        "messages": [response]
+    }
 
     return {"messages": [response]}
 
